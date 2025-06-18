@@ -1,0 +1,101 @@
+cohort_id,cohort_name,outcome_concept_id
+101,Acanthosis nigricans,4299544
+102,Acquired trigger finger,77965
+103,Acute conjunctivitis,376707
+104,Acute maxillary sinusitis,141323
+105,Acute otitis media,4150372
+106,Acute pancreatitis,199074
+107,Acute pyelonephritis,4280571
+108,Alcoholism,4218106
+109,Allergic urticaria,139902
+110,Alopecia areata,141933
+111,Ankylosing spondylitis,437082
+112,Anorexia nervosa,436675
+113,Aphasia,440424
+114,Aphthous ulcer of mouth,138463
+115,Astigmatism,378424
+116,Atelectasis,261880
+117,Benign paroxysmal positional vertigo,81878
+118,Benign prostatic hyperplasia,198803
+119,Benign tumor of breast,72576
+120,Bone cyst,80509
+121,Borderline personality disorder,434626
+122,Bulimia nervosa,438407
+123,Burn of skin,4108467
+124,Bursitis,134453
+125,Cachexia,134765
+126,Candidiasis of skin,4172458
+127,Carpal tunnel syndrome,380094
+128,Cellulitis,435613
+129,Chalazion,381581
+130,Cholelithiasis without obstruction,444367
+131,Closed fracture of femur,435093
+132,Colles' fracture,4047787
+133,Condyloma acuminatum of the anogenital region,198075
+134,Contusion of eye,381444
+135,Cystocele,198202
+136,Delusional disorder,432590
+137,Dental caries,133228
+138,Deviated nasal septum,377910
+139,Dislocation of distal radioulnar joint,4135082
+140,Dysmenorrhea,194696
+141,Dysthymia,433440
+142,Ectropion,376132
+143,Endometriosis (clinical),433527
+144,Fatigue fracture of vertebra,4001458
+145,Fracture of radius,4131595
+146,Fracture of rib,4142905
+147,Gastroesophageal reflux disease,318800
+148,Genital herpes simplex,74855
+149,Hashimoto thyroiditis,135215
+150,Hypercortisolism,195212
+151,Hypertrophy of nasal turbinates,440129
+152,Hypoparathyroidism,140362
+153,Infective meningitis,4207307
+154,Inguinal hernia,4288544
+155,Irritable bowel syndrome,75576
+156,Lymphangitis,439840
+157,Mallory-Weiss syndrome,316457
+158,Mastoiditis,374655
+159,Memory impairment,4304008
+160,Narcolepsy,436100
+161,Neck sprain,30234
+162,Neurofibromatosis syndrome,376938
+163,Nongonococcal urethritis,201792
+164,Onychomycosis,4215978
+165,Orchitis,4171915
+166,Osteoarthritis of knee,4079750
+167,Otitis externa,380731
+168,Paranoid schizophrenia,433450
+169,Paraplegia,192606
+170,Perianal abscess,199861
+171,Pneumothorax,253796
+172,Polycystic ovary syndrome,40443308
+173,Polyp of large intestine,4164337
+174,Posttraumatic stress disorder,436676
+175,Post-traumatic wound infection,4153877
+176,Presbyopia,373478
+177,Prolapsed lumbar intervertebral disc,4068482
+178,Prostatitis,194997
+179,Psoriasis,140168
+180,Psychoactive substance abuse,4239381
+181,Radial styloid tenosynovitis,73300
+182,Rectal prolapse,81336
+183,Retinal dystrophy,380395
+184,Scoliosis deformity of spine,72418
+185,Sensorineural hearing loss,374366
+186,Sialolithiasis,30441
+187,Sleep walking disorder,377535
+188,Sprain of cruciate ligament of knee,74189
+189,Sprain of shoulder rotator cuff,42873169
+190,Testicular mass,4339088
+191,Torticollis,440814
+192,Toxic nodular goiter,134619
+193,Tracheobronchitis,4028970
+194,Tuberous sclerosis syndrome,380839
+195,Tumor of hypothalamus,4114197
+196,Uterine prolapse,4092565
+197,Vesicoureteric reflux,197036
+198,Vesicular eczema,4049417
+199,"Viral hepatitis, type A",4223947
+200,Viral pneumonia,261326
