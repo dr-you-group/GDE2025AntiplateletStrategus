@@ -1,4 +1,4 @@
-Ticagrelor vs. Prasugrel
+Ticagrelor vs. Prasugrel (Strategus)
 ==============================
 
 Information
