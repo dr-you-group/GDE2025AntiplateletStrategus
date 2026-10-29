@@ -95,7 +95,13 @@ oList <- cohortDefinitionSet %>%
                                1792372, # [GDE2025_Antiplatelet] Secondary outcome - Stroke(hemorrhagic)
                                1792373, # [GDE2025_Antiplatelet] Secondary outcome - Stroke(ischemic)
                                1792371, # [GDE2025_Antiplatelet] Secondary Outcome - Stroke(both)
-                               1792374)) %>%
+                               1792374,
+                               # Revision AMI variants (extras/revision/CreateAmiVariantCohorts.R)
+                               # V1: AMI on inpatient/ER admission date; V2: AMI from day 7 after PCI
+                               17923701, 17923702, # AMI
+                               17923671, 17923672, # MACE
+                               17923661, 17923662, # NACE
+                               17923691, 17923692)) %>% # Ischemic event
   mutate(outcomeCohortId = cohortId, outcomeCohortName = cohortName) %>%
   select(outcomeCohortId, outcomeCohortName) %>%
   mutate(cleanWindow = 365)
