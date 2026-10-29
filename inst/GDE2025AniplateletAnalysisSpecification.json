@@ -1715,7 +1715,7 @@
             },
             "fitOutcomeModelArgs": {
               "modelType": "cox",
-              "stratified": false,
+              "stratified": true,
               "useCovariates": false,
               "inversePtWeighting": false,
               "profileBounds": [-2.3026, 2.3026],
@@ -1906,7 +1906,7 @@
             },
             "fitOutcomeModelArgs": {
               "modelType": "cox",
-              "stratified": false,
+              "stratified": true,
               "useCovariates": false,
               "inversePtWeighting": false,
               "profileBounds": [-2.3026, 2.3026],
@@ -2097,7 +2097,7 @@
             },
             "fitOutcomeModelArgs": {
               "modelType": "cox",
-              "stratified": false,
+              "stratified": true,
               "useCovariates": false,
               "inversePtWeighting": false,
               "profileBounds": [-2.3026, 2.3026],
@@ -2288,7 +2288,7 @@
             },
             "fitOutcomeModelArgs": {
               "modelType": "cox",
-              "stratified": false,
+              "stratified": true,
               "useCovariates": false,
               "inversePtWeighting": false,
               "profileBounds": [-2.3026, 2.3026],

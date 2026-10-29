@@ -134,6 +134,9 @@ cohortGeneratorModuleSpecifications <- cgModuleSettingsCreator$createModuleSpeci
 
 # CohortDiagnoticsModule Settings ---------------------------------------------
 cdModuleSettingsCreator <- CohortDiagnosticsModule$new()
+# Composite scores (Charlson, DCSI, CHADS2, CHA2DS2-VASc) excluded, as in commit 6c1c6be
+temporalCovariateSettings <- cdModuleSettingsCreator$.__enclos_env__$private$.getDefaultCovariateSettings()
+temporalCovariateSettings[c("CharlsonIndex", "Dcsi", "Chads2", "Chads2Vasc")] <- FALSE
 cohortDiagnosticsModuleSpecifications <- cdModuleSettingsCreator$createModuleSpecifications(
   cohortIds = cohortDefinitionSet$cohortId,
   runInclusionStatistics = TRUE,
@@ -145,6 +148,7 @@ cohortDiagnosticsModuleSpecifications <- cdModuleSettingsCreator$createModuleSpe
   runIncidenceRate = TRUE,
   runCohortRelationship = TRUE,
   runTemporalCohortCharacterization = TRUE,
+  temporalCovariateSettings = temporalCovariateSettings,
   minCharacterizationMean = 0.01
 )
 
@@ -230,6 +234,9 @@ cmModuleSettingsCreator <- CohortMethodModule$new()
 covariateSettings <- FeatureExtraction::createDefaultCovariateSettings(
   addDescendantsToExclude = TRUE # Keep TRUE because you're excluding concepts
 )
+# Short-term window 7 days (TP-DEC-0013) and composite scores excluded, as in commit 6c1c6be
+covariateSettings$shortTermStartDays <- -7
+covariateSettings[c("CharlsonIndex", "Dcsi", "Chads2", "Chads2Vasc")] <- FALSE
 outcomeList <- append(
   lapply(seq_len(nrow(oList)), function(i) {
     if (useCleanWindowForPriorOutcomeLookback)
@@ -309,27 +316,34 @@ computeSharedCovariateBalanceArgs = CohortMethod::createComputeCovariateBalanceA
 )
 computeCovariateBalanceArgs = CohortMethod::createComputeCovariateBalanceArgs(
   maxCohortSize = 250000,
-  covariateFilter = FeatureExtraction::getDefaultTable1Specifications()
+  covariateFilter = FeatureExtraction::getDefaultTable1Specifications() %>%
+    filter(!.data$analysisId %in% c(901, 902, 904)) # no composite-score rows
 )
-fitOutcomeModelArgs = CohortMethod::createFitOutcomeModelArgs(
-  modelType = "cox",
-  stratified = psMatchMaxRatio != 1,
-  useCovariates = FALSE,
-  inversePtWeighting = FALSE,
-  prior = Cyclops::createPrior(
-    priorType = "laplace", 
-    useCrossValidation = TRUE
-  ),
-  control = Cyclops::createControl(
-    cvType = "auto", 
-    seed = 1, 
-    resetCoefficients = TRUE,
-    startingVariance = 0.01, 
-    tolerance = 2e-07, 
-    cvRepetitions = 1, 
-    noiseLevel = "quiet"
+makeFitOutcomeModelArgs <- function(stratified) {
+  CohortMethod::createFitOutcomeModelArgs(
+    modelType = "cox",
+    stratified = stratified,
+    useCovariates = FALSE,
+    inversePtWeighting = FALSE,
+    prior = Cyclops::createPrior(
+      priorType = "laplace",
+      useCrossValidation = TRUE
+    ),
+    control = Cyclops::createControl(
+      cvType = "auto",
+      seed = 1,
+      resetCoefficients = TRUE,
+      startingVariance = 0.01,
+      tolerance = 2e-07,
+      cvRepetitions = 1,
+      noiseLevel = "quiet"
+    )
   )
-)
+}
+# Matching: conditioned on matched sets only for 1:many matching
+fitOutcomeModelArgsMatching <- makeFitOutcomeModelArgs(stratified = psMatchMaxRatio != 1)
+# Stratification: always conditioned on PS strata (TP-OQ-0001, TP-DEC-0013)
+fitOutcomeModelArgsStratification <- makeFitOutcomeModelArgs(stratified = TRUE)
 cmAnalysisList <- list()
 for (i in seq_len(nrow(timeAtRisks))) {
   createStudyPopArgs <- CohortMethod::createCreateStudyPopulationArgs(
@@ -359,7 +373,7 @@ for (i in seq_len(nrow(timeAtRisks))) {
     # stratifyByPsArgs = stratifyByPsArgs,
     computeSharedCovariateBalanceArgs = computeSharedCovariateBalanceArgs,
     computeCovariateBalanceArgs = computeCovariateBalanceArgs,
-    fitOutcomeModelArgs = fitOutcomeModelArgs
+    fitOutcomeModelArgs = fitOutcomeModelArgsMatching
   )
   cmAnalysisList[[i + length(timeAtRisks) - 1]] <- CohortMethod::createCmAnalysis(
     analysisId = i + length(timeAtRisks) - 1,
@@ -374,7 +388,7 @@ for (i in seq_len(nrow(timeAtRisks))) {
     stratifyByPsArgs = stratifyByPsArgs,
     computeSharedCovariateBalanceArgs = computeSharedCovariateBalanceArgs,
     computeCovariateBalanceArgs = computeCovariateBalanceArgs,
-    fitOutcomeModelArgs = fitOutcomeModelArgs
+    fitOutcomeModelArgs = fitOutcomeModelArgsStratification
   )
 }
 cohortMethodModuleSpecifications <- cmModuleSettingsCreator$createModuleSpecifications(
