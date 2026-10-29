@@ -82,8 +82,12 @@ loadRevisionInputs <- function(cmFolder, analysisId, targetId, comparatorId, out
                      reference$comparatorId == comparatorId & reference$outcomeId == outcomeId, ]
   if (nrow(row) != 1) stop(sprintf("No saved files for analysis %s, outcome %s", analysisId, outcomeId))
   populationFile <- if (row$strataFile != "") row$strataFile else row$studyPopFile
+  negativeControlIds <- reference$outcomeId[reference$analysisId == analysisId & reference$targetId == targetId &
+                                              reference$comparatorId == comparatorId & !reference$outcomeOfInterest]
   list(cmDataFile = file.path(cmFolder, row$cohortMethodDataFile),
-       population = readRDS(file.path(cmFolder, populationFile)))
+       sharedPsFile = file.path(cmFolder, row$sharedPsFile),
+       population = readRDS(file.path(cmFolder, populationFile)),
+       negativeControlIds = negativeControlIds)
 }
 
 # Derived covariates ----------------------------------------------------------------
@@ -253,9 +257,114 @@ fitStratifiedCox <- function(population) {
   data.frame(logRr = estimate$logRr, logLb95 = estimate$logLb95, logUb95 = estimate$logUb95, seLogRr = estimate$seLogRr)
 }
 
-runSubgroupAnalyses <- function(population, revisionCovariateData, minCellCount) {
-  results <- list()
+# Negative-control populations are not saved by CohortMethod. They are rebuilt here as
+# CohortMethod built them (study population -> shared PS -> PS strata); this reproduces
+# the saved populations and negative-control estimates exactly.
+rebuildStratifiedPopulation <- function(cmData, sharedPs, createStudyPopArgs, stratifyByPsArgs, outcomeId) {
+  args <- createStudyPopArgs[names(createStudyPopArgs) %in% names(formals(CohortMethod::createStudyPopulation))]
+  population <- do.call(CohortMethod::createStudyPopulation,
+                        c(list(cohortMethodData = cmData, outcomeId = outcomeId), args))
+  psColumns <- intersect(c("rowId", "propensityScore", "preferenceScore"), colnames(sharedPs))
+  population <- population %>% inner_join(sharedPs[, psColumns], by = "rowId")
+  args <- stratifyByPsArgs[names(stratifyByPsArgs) %in% names(formals(CohortMethod::stratifyByPs))]
+  do.call(CohortMethod::stratifyByPs, c(list(population = population), args))
+}
+
+# Negative-control estimates in the whole population ("all") and in every subgroup level
+subgroupNegativeControlEstimates <- function(cmData, sharedPs, createStudyPopArgs, stratifyByPsArgs,
+                                             negativeControlIds, revisionCovariateData) {
+  present <- cmData$outcomes %>% distinct(.data$outcomeId) %>% pull(.data$outcomeId)
+  levels <- data.frame(subgroup = "all", level = "all", levelId = NA_real_)
   for (variable in names(subgroupVariables)) {
+    levels <- rbind(levels, data.frame(subgroup = variable, level = names(subgroupVariables[[variable]]),
+                                       levelId = unname(subgroupVariables[[variable]])))
+  }
+  estimates <- list()
+  for (outcomeId in intersect(negativeControlIds, present)) {
+    population <- suppressMessages(suppressWarnings(
+      rebuildStratifiedPopulation(cmData, sharedPs, createStudyPopArgs, stratifyByPsArgs, outcomeId)
+    ))
+    for (i in seq_len(nrow(levels))) {
+      sub <- if (is.na(levels$levelId[i])) population else
+        population[population$rowId %in% subgroupRows(levels$levelId[i], revisionCovariateData, population), ]
+      est <- suppressMessages(suppressWarnings(fitStratifiedCox(sub)))
+      estimates[[length(estimates) + 1]] <- data.frame(outcomeId = outcomeId, subgroup = levels$subgroup[i],
+                                                       level = levels$level[i], logRr = est$logRr, seLogRr = est$seLogRr)
+    }
+  }
+  bind_rows(estimates) %>% filter(is.finite(.data$logRr), is.finite(.data$seLogRr))
+}
+
+# Calibrate with the level's own negative controls when at least minNegativeControls have
+# estimates; otherwise with the whole-population negative controls.
+calibrateSubgroupResults <- function(results, negativeControlEstimates, minNegativeControls) {
+  overall <- negativeControlEstimates %>% filter(.data$subgroup == "all")
+  calibrated <- lapply(seq_len(nrow(results)), function(i) {
+    r <- results[i, ]
+    own <- negativeControlEstimates %>% filter(.data$subgroup == r$subgroup, .data$level == r$level)
+    if (nrow(own) >= minNegativeControls) {
+      nc <- own; method <- "subgroup negative controls"
+    } else if (nrow(overall) >= minNegativeControls) {
+      nc <- overall; method <- "whole-population negative controls"
+    } else {
+      nc <- NULL; method <- "not calibrated (too few negative controls)"
+    }
+    out <- data.frame(calibrationMethod = method, negativeControlsUsed = if (is.null(nc)) 0 else nrow(nc),
+                      calibratedLogRr = NA_real_, calibratedSeLogRr = NA_real_,
+                      calibratedLogLb95 = NA_real_, calibratedLogUb95 = NA_real_, calibratedP = NA_real_)
+    if (!is.null(nc) && is.finite(r$seLogRr)) {
+      tryCatch({
+        model <- EmpiricalCalibration::fitSystematicErrorModel(nc$logRr, nc$seLogRr, rep(0, nrow(nc)))
+        ci <- EmpiricalCalibration::calibrateConfidenceInterval(r$logRr, r$seLogRr, model)
+        null <- EmpiricalCalibration::fitNull(nc$logRr, nc$seLogRr)
+        out$calibratedLogRr <- ci$logRr
+        out$calibratedSeLogRr <- ci$seLogRr
+        out$calibratedLogLb95 <- ci$logLb95Rr
+        out$calibratedLogUb95 <- ci$logUb95Rr
+        out$calibratedP <- EmpiricalCalibration::calibrateP(null, r$logRr, r$seLogRr)
+      }, error = function(e) out$calibrationMethod <<- paste("calibration failed:", conditionMessage(e)))
+    }
+    out
+  })
+  bind_cols(results, bind_rows(calibrated))
+}
+
+# Heterogeneity across levels of each subgroup variable (Cochran's Q on log HRs);
+# with 2 levels this is the z-test for the difference
+heterogeneityP <- function(results, logRrColumn, seColumn) {
+  results %>%
+    filter(.data$subgroup != "all", is.finite(.data[[seColumn]]), .data[[seColumn]] > 0) %>%
+    group_by(.data$subgroup) %>%
+    summarise(
+      levelsWithEstimate = n(),
+      q = {
+        w <- 1 / .data[[seColumn]]^2
+        sum(w * (.data[[logRrColumn]] - sum(w * .data[[logRrColumn]]) / sum(w))^2)
+      },
+      .groups = "drop"
+    ) %>%
+    transmute(.data$subgroup, p = if_else(.data$levelsWithEstimate > 1,
+                                          pchisq(.data$q, df = .data$levelsWithEstimate - 1, lower.tail = FALSE),
+                                          NA_real_))
+}
+
+runSubgroupAnalyses <- function(population, revisionCovariateData, minCellCount,
+                                negativeControlEstimates = NULL, minNegativeControls = 20) {
+  results <- list()
+  for (variable in c("all", names(subgroupVariables))) {
+    if (variable == "all") {
+      sub <- population
+      results[[1]] <- data.frame(
+        subgroup = "all", level = "all",
+        targetSubjects = sum(sub$treatment == 1), comparatorSubjects = sum(sub$treatment == 0),
+        targetOutcomes = sum(sub$outcomeCount[sub$treatment == 1] > 0),
+        comparatorOutcomes = sum(sub$outcomeCount[sub$treatment == 0] > 0),
+        targetDays = sum(sub$timeAtRisk[sub$treatment == 1]),
+        comparatorDays = sum(sub$timeAtRisk[sub$treatment == 0]),
+        fitStratifiedCox(sub)
+      )
+      next
+    }
     levels <- subgroupVariables[[variable]]
     for (level in names(levels)) {
       sub <- population[population$rowId %in% subgroupRows(levels[[level]], revisionCovariateData, population), ]
@@ -272,23 +381,19 @@ runSubgroupAnalyses <- function(population, revisionCovariateData, minCellCount)
     }
   }
   results <- bind_rows(results)
-  # Heterogeneity across levels (Cochran's Q on log HRs); 2 levels = z-test for difference
-  heterogeneity <- results %>%
-    filter(!is.na(.data$seLogRr), .data$seLogRr > 0) %>%
-    group_by(.data$subgroup) %>%
-    summarise(
-      levelsWithEstimate = n(),
-      q = {
-        w <- 1 / .data$seLogRr^2
-        sum(w * (.data$logRr - sum(w * .data$logRr) / sum(w))^2)
-      },
-      .groups = "drop"
-    ) %>%
-    mutate(interactionP = if_else(.data$levelsWithEstimate > 1,
-                                  pchisq(.data$q, df = .data$levelsWithEstimate - 1, lower.tail = FALSE),
-                                  NA_real_))
+  if (!is.null(negativeControlEstimates)) {
+    results <- calibrateSubgroupResults(results, negativeControlEstimates, minNegativeControls)
+  }
+  results <- results %>%
+    left_join(heterogeneityP(results, "logRr", "seLogRr") %>% rename(interactionP = "p"), by = "subgroup")
+  if (!is.null(negativeControlEstimates)) {
+    results <- results %>%
+      left_join(heterogeneityP(results, "calibratedLogRr", "calibratedSeLogRr") %>% rename(calibratedInteractionP = "p"),
+                by = "subgroup") %>%
+      mutate(calibratedHr = exp(.data$calibratedLogRr), calibratedCi95Lb = exp(.data$calibratedLogLb95),
+             calibratedCi95Ub = exp(.data$calibratedLogUb95))
+  }
   results %>%
-    left_join(heterogeneity %>% select("subgroup", "interactionP"), by = "subgroup") %>%
     mutate(
       hr = exp(.data$logRr), ci95Lb = exp(.data$logLb95), ci95Ub = exp(.data$logUb95),
       across(c("targetSubjects", "comparatorSubjects", "targetOutcomes", "comparatorOutcomes"), ~ censorCounts(.x, minCellCount))
@@ -489,6 +594,9 @@ switchingProfile <- function(population, records, targetId, comparatorId, target
 # primaryAnalysisId / onTreatmentAnalysisId: analysis IDs of the 1-year ITT and on-treatment
 #   PS-stratification analyses (ATLAS package: 8 and 2; Strategus: 8 and 5).
 # createStudyPopArgs: named list of the createStudyPopArgs of those two analyses.
+# stratifyByPsArgs: stratifyByPsArgs of the primary analysis. When given, subgroup HRs are
+#   empirically calibrated with negative controls rebuilt within each subgroup level (own
+#   controls if >= minNegativeControls have estimates, else whole-population controls).
 # subgroupOutcomeIds: outcomes for the subgroup analyses (MACE and its AMI variants).
 # populations: optional named list (outcome ID -> PS-stratified population) to use instead
 #   of saved files, e.g. for outcomes refitted outside CohortMethod (HIRA).
@@ -501,6 +609,8 @@ runRevisionPostHoc <- function(cmFolder,
                                primaryAnalysisId = 8,
                                onTreatmentAnalysisId,
                                createStudyPopArgs,
+                               stratifyByPsArgs = NULL,
+                               minNegativeControls = 20,
                                subgroupOutcomeIds = c(1792367, 17923671, 17923672),
                                populations = list(),
                                deathOutcomeId = 1792364,
@@ -538,6 +648,20 @@ runRevisionPostHoc <- function(cmFolder,
   write(computeBalance(population, smallCmData, minCellCount = minCellCount), "characteristics_balance")
   write(subgroupBalanceSummary(population, smallCmData, minCellCount), "subgroup_balance")
 
+  negativeControlEstimates <- NULL
+  if (!is.null(stratifyByPsArgs)) {
+    message("Negative controls within subgroups (rebuilt from saved files; this takes a few minutes)")
+    negativeControlEstimates <- subgroupNegativeControlEstimates(
+      cmData = cmData,
+      sharedPs = readRDS(primary$sharedPsFile),
+      createStudyPopArgs = createStudyPopArgs[[as.character(primaryAnalysisId)]],
+      stratifyByPsArgs = stratifyByPsArgs,
+      negativeControlIds = primary$negativeControlIds,
+      revisionCovariateData = revisionCovariateData
+    )
+    write(negativeControlEstimates, "subgroup_negative_controls")
+  }
+
   message("Subgroup analyses")
   subgroupResults <- bind_rows(lapply(subgroupOutcomeIds, function(outcomeId) {
     pop <- populations[[as.character(outcomeId)]]
@@ -549,7 +673,8 @@ runRevisionPostHoc <- function(cmFolder,
       warning("No population for outcome ", outcomeId)
       return(NULL)
     }
-    runSubgroupAnalyses(pop, revisionCovariateData, minCellCount) %>% mutate(outcomeId = !!outcomeId, .before = 1)
+    runSubgroupAnalyses(pop, revisionCovariateData, minCellCount, negativeControlEstimates, minNegativeControls) %>%
+      mutate(outcomeId = !!outcomeId, .before = 1)
   }))
   write(subgroupResults, "subgroup_results")
 

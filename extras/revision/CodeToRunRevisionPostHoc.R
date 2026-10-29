@@ -3,7 +3,8 @@
 # same R environment and from the project root. Main version only (not the expanded run).
 #
 # Reads the saved CohortMethod files in the Strategus work folder and runs:
-#   subgroups (MACE, MACE-V1, MACE-V2), balance of ACS type / severity markers / age groups,
+#   subgroups (MACE, MACE-V1, MACE-V2; calibrated with negative controls), balance of ACS
+#   type / severity markers / age groups,
 #   zero time-at-risk exclusion reasons, study period, and P2Y12 switching/discontinuation.
 # The switching profile needs one READ-ONLY query (drug_exposure joined to the cohort
 # table); nothing is written to the database. Outputs are aggregate CSVs with counts
@@ -30,9 +31,8 @@ minCellCount <- 5
 # Study-population settings of the analyses, taken from the package specification ------
 spec <- ParallelLogger::loadSettingsFromJson("inst/GDE2025AniplateletAnalysisSpecification.json")
 cmSpec <- Filter(function(m) m$module == "CohortMethodModule", spec$moduleSpecifications)[[1]]
-studyPopArgs <- function(analysisId) {
-  analysis <- Filter(function(a) a$analysisId == analysisId, cmSpec$settings$cmAnalysisList)[[1]]
-  analysis$createStudyPopArgs
+cmAnalysis <- function(analysisId) {
+  Filter(function(a) a$analysisId == analysisId, cmSpec$settings$cmAnalysisList)[[1]]
 }
 
 runRevisionPostHoc(
@@ -41,7 +41,8 @@ runRevisionPostHoc(
   databaseId = databaseId,
   primaryAnalysisId = 8, # ITT 1 year, PS stratification
   onTreatmentAnalysisId = 5, # on-treatment, PS stratification
-  createStudyPopArgs = list("8" = studyPopArgs(8), "5" = studyPopArgs(5)),
+  createStudyPopArgs = list("8" = cmAnalysis(8)$createStudyPopArgs, "5" = cmAnalysis(5)$createStudyPopArgs),
+  stratifyByPsArgs = cmAnalysis(8)$stratifyByPsArgs, # subgroup calibration with negative controls
   connectionDetails = connectionDetails,
   cdmDatabaseSchema = cdmDatabaseSchema,
   cohortDatabaseSchema = cohortDatabaseSchema,
