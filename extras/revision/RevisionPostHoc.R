@@ -73,7 +73,9 @@ censorCounts <- function(x, minCellCount) {
 }
 
 idToChar <- function(x) {
-  if (inherits(x, "integer64")) as.character(x) else format(x, scientific = FALSE, trim = TRUE)
+  if (is.character(x)) return(trimws(x))
+  if (inherits(x, "integer64")) return(as.character(x))
+  sprintf("%.0f", x)
 }
 
 loadRevisionInputs <- function(cmFolder, analysisId, targetId, comparatorId, outcomeId) {
@@ -460,7 +462,7 @@ p2y12Ingredients <- c(clopidogrel = 1322184, ticagrelor = 40241186, prasugrel = 
 getP2y12Records <- function(connectionDetails, cdmDatabaseSchema, cohortDatabaseSchema, cohortTable,
                             targetId, comparatorId) {
   sql <- "
-SELECT c.subject_id AS person_id,
+SELECT CAST(c.subject_id AS VARCHAR(50)) AS person_id,
   c.cohort_definition_id,
   c.cohort_start_date,
   ca.ancestor_concept_id AS ingredient_concept_id,
@@ -499,7 +501,7 @@ switchingProfile <- function(population, records, targetId, comparatorId, target
       end = pmax(.data$start, as.numeric(as.Date(.data$drugExposureEndDate) - .data$cohortStartDate))
     )
   people <- population %>%
-    transmute(.data$rowId, personId = as.character(.data$personId), .data$treatment, .data$cohortStartDate,
+    transmute(.data$rowId, personId = idToChar(.data$personId), .data$treatment, .data$cohortStartDate,
               followUpEnd = pmin(365, .data$daysToObsEnd))
   # Merge exposures of the same ingredient into eras allowing gaps of up to gapDays
   eras <- records %>%
