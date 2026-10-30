@@ -1,4 +1,4 @@
-# JACC Asia revision: post hoc analyses (MAIN version only). Run after StrategusCodeToRun.R.
+# JACC Asia revision: post hoc analyses. Run after StrategusCodeToRun.R.
 # Fill in the settings and source this file. Send the <workFolder>/revisionPostHoc folder.
 source("extras/revision/RevisionPostHoc.R")
 
