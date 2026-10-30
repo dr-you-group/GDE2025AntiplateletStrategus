@@ -107,11 +107,12 @@ oList <- cohortDefinitionSet %>%
   mutate(cleanWindow = 365)
 
 # For the CohortMethod analysis we'll use the subsetted cohorts
+# CCAE/MDCR: main exposure window (day -1 to 0) and expanded window (day -1 to +1)
 cmTcList <- data.frame(
-  targetCohortId =  1792797, # [GDE2025_Antiplatelet] Ticagrelor cohort - Revised
-  targetCohortName = "Ticagrelor cohort",
-  comparatorCohortId =  1793457, # [GDE2025_Antiplatelet] Prasugrel cohort - Revised
-  comparatorCohortName = "Prasugrel cohort"
+  targetCohortId = c(1792797, 17927971), # Ticagrelor cohort: main, expanded
+  targetCohortName = c("Ticagrelor cohort", "Ticagrelor cohort (expanded)"),
+  comparatorCohortId = c(1793457, 17934571), # Prasugrel cohort: main, expanded
+  comparatorCohortName = c("Prasugrel cohort", "Prasugrel cohort (expanded)")
 )
 
 # For the CohortMethod LSPS we'll need to exclude the drugs of interest in this

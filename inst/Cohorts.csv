@@ -21,3 +21,5 @@ atlas_id,cohort_id,cohort_name,logic_description,generate_stats
 17923662,17923662,"[GDE2025_Antiplatelet] Revision outcome - NACE (V2, AMI from day 7: no PCI in prior 1-6 days)","AMI component requires an inpatient/ER AMI record with no PCI 1-6 days before it (7-day blanking after the index PCI). Other components unchanged.",TRUE
 17923691,17923691,"[GDE2025_Antiplatelet] Revision outcome - Ischemic event (V1, AMI on inpatient/ER admission date)","AMI component requires the AMI record on the start date of an inpatient or ER visit (proxy for admission for AMI). Other components unchanged.",TRUE
 17923692,17923692,"[GDE2025_Antiplatelet] Revision outcome - Ischemic event (V2, AMI from day 7: no PCI in prior 1-6 days)","AMI component requires an inpatient/ER AMI record with no PCI 1-6 days before it (7-day blanking after the index PCI). Other components unchanged.",TRUE
+17927971,17927971,"[GDE2025_Antiplatelet] Ticagrelor cohort - expanded exposure window (day -1 to +1)",NA,TRUE
+17934571,17934571,"[GDE2025_Antiplatelet] Prasugrel cohort - expanded exposure window (day -1 to +1)",NA,TRUE
