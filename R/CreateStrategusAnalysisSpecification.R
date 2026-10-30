@@ -140,7 +140,7 @@ cohortGeneratorModuleSpecifications <- cgModuleSettingsCreator$createModuleSpeci
 
 # CohortDiagnoticsModule Settings ---------------------------------------------
 cdModuleSettingsCreator <- CohortDiagnosticsModule$new()
-# Composite scores (Charlson, DCSI, CHADS2, CHA2DS2-VASc) excluded, as in commit 6c1c6be
+# No composite scores (Charlson, DCSI, CHADS2, CHA2DS2-VASc)
 temporalCovariateSettings <- cdModuleSettingsCreator$.__enclos_env__$private$.getDefaultCovariateSettings()
 temporalCovariateSettings[c("CharlsonIndex", "Dcsi", "Chads2", "Chads2Vasc")] <- FALSE
 cohortDiagnosticsModuleSpecifications <- cdModuleSettingsCreator$createModuleSpecifications(
@@ -240,7 +240,7 @@ cmModuleSettingsCreator <- CohortMethodModule$new()
 covariateSettings <- FeatureExtraction::createDefaultCovariateSettings(
   addDescendantsToExclude = TRUE # Keep TRUE because you're excluding concepts
 )
-# Short-term window 7 days (TP-DEC-0013) and composite scores excluded, as in commit 6c1c6be
+# Short-term covariate window: 7 days before index; no composite scores
 covariateSettings$shortTermStartDays <- -7
 covariateSettings[c("CharlsonIndex", "Dcsi", "Chads2", "Chads2Vasc")] <- FALSE
 outcomeList <- append(
@@ -348,7 +348,7 @@ makeFitOutcomeModelArgs <- function(stratified) {
 }
 # Matching: conditioned on matched sets only for 1:many matching
 fitOutcomeModelArgsMatching <- makeFitOutcomeModelArgs(stratified = psMatchMaxRatio != 1)
-# Stratification: always conditioned on PS strata (TP-OQ-0001, TP-DEC-0013)
+# Stratification: always conditioned on PS strata (revision fix)
 fitOutcomeModelArgsStratification <- makeFitOutcomeModelArgs(stratified = TRUE)
 cmAnalysisList <- list()
 for (i in seq_len(nrow(timeAtRisks))) {
