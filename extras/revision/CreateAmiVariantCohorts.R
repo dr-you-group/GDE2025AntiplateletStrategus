@@ -1,11 +1,8 @@
-# JACC Asia revision (TP-DEC-0015): AMI-variant outcome cohorts --------------------
-# Builds two variants of every outcome that contains AMI, from the original
-# definitions in inst/cohorts:
-#   V1 (new admission): AMI recorded on the start date of an inpatient/ER visit.
-#   V2 (7-day blanking): inpatient/ER AMI with no PCI in the 1-6 days before it,
-#      i.e. AMI from day 7 after the index PCI. Other components are unchanged.
-# Writes inst/cohorts/<id>.json, inst/sql/sql_server/<id>.sql and adds rows to
-# inst/Cohorts.csv. Run from the project root; safe to rerun.
+# JACC Asia revision: builds the AMI-variant outcome cohorts. Sites do NOT run this;
+# its outputs (inst/cohorts, inst/sql/sql_server, inst/Cohorts.csv) are in the package.
+#   V1: AMI recorded on the start date of an inpatient/ER visit (new admission)
+#   V2: inpatient/ER AMI with no PCI 1-6 days before it (AMI from day 7 after index PCI)
+# Applied to AMI, MACE, NACE and the ischemic composite; other components unchanged.
 library(jsonlite)
 
 parents <- data.frame(
