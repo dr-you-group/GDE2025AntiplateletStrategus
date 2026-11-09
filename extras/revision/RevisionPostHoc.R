@@ -29,7 +29,7 @@ severityMarkers <- list(
   ),
   mechanicalVentilation = list(
     include = "mechanical ventilation|ventilation assist|ventilator|endotracheal|intubation of trachea",
-    exclude = "non-?invasive|home ventilator|hyperventilation|lacrimal|anesthesia|anaesthesia|scan|speech valve|dependence on|history of"
+    exclude = "non-?invasive|ventilator care|home ventilator|hyperventilation|lacrimal|anesthesia|anaesthesia|scan|speech valve|dependence on|history of"
   )
 )
 
