@@ -17,21 +17,21 @@ Sys.setenv("_JAVA_OPTIONS"="-Xmx4g") # Sets the Java maximum heap space to 4GB
 Sys.setenv("VROOM_THREADS"=1) # Sets the number of threads to 1 to avoid deadlocks on file system
 
 ##=========== START OF INPUTS ==========
-cdmDatabaseSchema <- "CDM_v531_YUHS.CDM"
-workDatabaseSchema <- "cohortdb.changhoonhan"
-outputLocation <- file.path(getwd(), "results")
-databaseName <- "YUHS" # Only used as a folder name for results from the study
+cdmDatabaseSchema <- "your_cdm_schema"
+workDatabaseSchema <- "your_work_schema"
+outputLocation <- file.path(getwd(), "results") # rerun: the results folder of the previous run (finished cohorts are skipped)
+databaseName <- "your_database_name" # Only used as a folder name for results from the study
 minCellCount <- 5
-cohortTableName <- "GDE2025AntiplateletAnalysisS"
+cohortTableName <- "your_cohort_table" # rerun: the same cohort table as the previous run
 
 # Create the connection details for your CDM
 # More details on how to do this are found here:
 # https://ohdsi.github.io/DatabaseConnector/reference/createConnectionDetails.html
  connectionDetails <- DatabaseConnector::createConnectionDetails(
-   dbms = "sql server",
-   user = "paul9567",
-   password = "Euez3yz!@#",
-   server = "10.19.10.241"
+   dbms = "your_dbms",
+   user = "your_user",
+   password = "your_password",
+   server = "your_server"
  )
 
 # You can use this snippet to test your connection
@@ -59,6 +59,8 @@ ParallelLogger::saveSettingsToJson(
   object = executionSettings,
   fileName = file.path(outputLocation, databaseName, "executionSettings.json")
 )
+
+source("extras/revision/FastCohortSql.R") # faster SQL for 7 slow cohorts (same cohorts)
 
 Strategus::execute(
   analysisSpecifications = analysisSpecifications,
