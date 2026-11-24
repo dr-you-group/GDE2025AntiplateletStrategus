@@ -25,3 +25,4 @@ local({
   })
   message("Fast SQL set for cohorts ", paste(fastIds, collapse = ", "))
 })
+source(file.path("extras", "revision", "CohortGeneratorExportFix.R"))
